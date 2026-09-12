@@ -54,6 +54,19 @@ class PackagingTests(unittest.TestCase):
             },
         )
 
+    def test_package_bytes_ignore_source_mtimes(self):
+        first = Path(self.temporary.name) / "first"
+        second = Path(self.temporary.name) / "second"
+        for script in ("build-deb.sh", "build-archive.sh"):
+            self.run_script(script, OUTPUT_DIR=str(first), SOURCE_DATE_EPOCH="0")
+        for source in (self.root / "src").iterdir():
+            os.utime(source, (2000000000, 2000000000))
+        for script in ("build-deb.sh", "build-archive.sh"):
+            self.run_script(script, OUTPUT_DIR=str(second), SOURCE_DATE_EPOCH="0")
+        self.assertEqual({p.name for p in first.iterdir()}, {p.name for p in second.iterdir()})
+        for original in first.iterdir():
+            self.assertEqual(original.read_bytes(), (second / original.name).read_bytes())
+
     def test_debian_package_has_dependencies_files_and_no_maintainer_hooks(self):
         if not shutil.which("dpkg-deb"):
             self.skipTest("dpkg-deb is unavailable")
