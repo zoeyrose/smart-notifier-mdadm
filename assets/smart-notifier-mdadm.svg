@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-labelledby="title desc">
+<title id="title">smart-notifier-mdadm</title><desc id="desc">A lilac bell with a pink star, nestled between two mirrored drives on a dark plum circle.</desc>
+<circle cx="64" cy="64" r="62" fill="#281d33"/>
+<g fill="#45314f" stroke="#af94bb" stroke-width="2"><rect x="14" y="43" width="25" height="47" rx="7"/><rect x="89" y="43" width="25" height="47" rx="7"/></g>
+<g stroke="#dfb0cb" stroke-width="2" stroke-linecap="round"><path d="M21 52h11m64 0h11M21 59h11m64 0h11"/></g>
+<g fill="#dfb0cb"><circle cx="27" cy="81" r="2"/><circle cx="101" cy="81" r="2"/></g>
+<path d="M45 77c6-6 5-13 5-23a14 14 0 0 1 28 0c0 10-1 17 5 23l4 5H41z" fill="#c0a2d4" stroke="#ecd3e5" stroke-width="2" stroke-linejoin="round"/>
+<path d="M58 88a6 6 0 0 0 12 0" fill="#dfb0cb"/><path d="M64 32v6" stroke="#ecd3e5" stroke-width="4" stroke-linecap="round"/>
+<path d="m96 20 3 7 7 3-7 3-3 7-3-7-7-3 7-3z" fill="#dfb0cb"/>
+</svg>

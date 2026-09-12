@@ -1,0 +1,9 @@
+__pycache__/
+*.py[cod]
+.venv/
+node_modules/
+dist/
+build/
+release-plan.json
+release-assets/
+release-input/
