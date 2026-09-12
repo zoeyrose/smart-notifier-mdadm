@@ -1,4 +1,5 @@
 import contextlib
+import errno
 import importlib.util
 import io
 import os
@@ -95,6 +96,17 @@ class FilesystemTests(unittest.TestCase):
         self.assertEqual(self.config.stat().st_mode & 0o777, 0o640)
         self.assertEqual(self.config.stat().st_uid, info.st_uid)
         self.assertEqual(list(self.root.iterdir()), [self.config])
+
+    def test_atomic_write_retains_extended_attributes(self):
+        try:
+            os.setxattr(self.config, 'user.notifier-test', b'preserved')
+        except OSError as exc:
+            if exc.errno in (errno.ENOTSUP, errno.EOPNOTSUPP):
+                self.skipTest('Test filesystem does not support extended attributes')
+            raise
+        before, info = configure.read_regular(self.config)
+        configure.atomic_write(self.config, b'updated', before, info)
+        self.assertEqual(os.getxattr(self.config, 'user.notifier-test'), b'preserved')
 
     def test_concurrent_edit_prevents_replacement_and_cleans_temp(self):
         before, info = configure.read_regular(self.config)
