@@ -46,19 +46,19 @@ def line_words(line):
     words = []
     index = 0
     while index < len(line):
-        if line[index] in ' \t\r\n':
+        if line[index] in ' \t\n':
             index += 1
             continue
         if line[index] == '#':
             return words, index
         start = index
         value = []
-        while index < len(line) and line[index] not in ' \t\r\n':
+        while index < len(line) and line[index] not in ' \t\n':
             character = line[index]
             if character in ('"', "'"):
                 index += 1
                 close = line.find(character, index)
-                if close == -1 or '\n' in line[index:close] or '\r' in line[index:close]:
+                if close == -1 or '\n' in line[index:close]:
                     raise RuntimeError('Unterminated or multiline quoted mdadm word needs manual review.')
                 value.append(line[index:close])
                 index = close + 1
@@ -75,7 +75,8 @@ def program_keyword(word):
 
 def configure(text, action, managed_legacy=False):
     """Transform a simple PROGRAM directive; preserve unrelated logical lines."""
-    lines = text.splitlines(keepends=True)
+    lines = text.split('\n')
+    lines = [line + '\n' for line in lines[:-1]] + ([lines[-1]] if lines[-1] else [])
     programs = []
     previous_program = False
     for index, line in enumerate(lines):

@@ -78,6 +78,19 @@ class TransformTests(unittest.TestCase):
         self.assertEqual(configure.configure(before, 'enable'), before)
         self.assertEqual(configure.configure(before, 'disable'), '# "unclosed quote and #\n')
 
+    def test_only_space_tab_and_lf_separate_program_words(self):
+        for suffix in ('\r', '\v', '\f', '\x85', '\u2028', '\u2029'):
+            before = f'PROGRAM {configure.TARGET}{suffix}\n'
+            for action in ('enable', 'disable'):
+                with self.subTest(suffix=repr(suffix), action=action), self.assertRaises(RuntimeError):
+                    configure.configure(before, action)
+
+    def test_unrelated_physical_text_is_preserved(self):
+        before = 'MAILADDR root\r\nARRAY /dev/md0 name=foo\u2028bar\n'
+        after = configure.configure(before, 'enable')
+        self.assertEqual(after, before + f'PROGRAM {configure.TARGET}\n')
+        self.assertEqual(configure.configure(after, 'disable'), before)
+
 
 class FilesystemTests(unittest.TestCase):
     def setUp(self):
