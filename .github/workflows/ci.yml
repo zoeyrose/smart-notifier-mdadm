@@ -47,7 +47,7 @@ jobs:
           RELEASE_SHA: ${{ github.sha }}
           EVENT_KIND: ${{ github.event_name }}
         run: node release/ci-plan.mjs
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: release-plan
           path: release-plan.json
@@ -95,7 +95,7 @@ jobs:
         env:
           SOURCE_SHA: ${{ needs.plan.outputs.git_head }}
         run: node release/manifest.mjs
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: packages-all
           path: |
