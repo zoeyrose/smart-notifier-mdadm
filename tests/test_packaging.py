@@ -96,8 +96,12 @@ class PackagingTests(unittest.TestCase):
         archive_path = self.root / "dist" / "smart-notifier-mdadm-1.2.3-linux-all.tar.gz"
         unpacked = Path(self.temporary.name) / "archive"
         with tarfile.open(archive_path, "r:gz") as archive:
-            self.assertTrue(all(not Path(member.name).is_absolute() and ".." not in Path(member.name).parts for member in archive.getmembers()))
-            archive.extractall(unpacked)
+            for entry in archive:
+                if os.path.isabs(entry.name) or ".." in entry.name:
+                    raise ValueError("Unsafe archive member path")
+                if not (entry.isfile() or entry.isdir()):
+                    raise ValueError("Unexpected archive member type")
+                archive.extract(entry, unpacked)
         contents = unpacked / "smart-notifier-mdadm-1.2.3"
         destination = Path(self.temporary.name) / "install-root"
         subprocess.run(
