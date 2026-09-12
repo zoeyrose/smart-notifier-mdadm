@@ -37,27 +37,76 @@ def legacy_is_managed():
     return LEGACY_MARKER in data.splitlines()
 
 
+def line_words(line):
+    """Tokenize mdadm words, retaining raw spelling and the actual comment offset.
+
+    Unlike shell syntax, a hash inside a word is literal and backslashes do
+    not escape characters. Multiline quoted words require manual review.
+    """
+    words = []
+    index = 0
+    while index < len(line):
+        if line[index] in ' \t\r\n':
+            index += 1
+            continue
+        if line[index] == '#':
+            return words, index
+        start = index
+        value = []
+        while index < len(line) and line[index] not in ' \t\r\n':
+            character = line[index]
+            if character in ('"', "'"):
+                index += 1
+                close = line.find(character, index)
+                if close == -1 or '\n' in line[index:close] or '\r' in line[index:close]:
+                    raise RuntimeError('Unterminated or multiline quoted mdadm word needs manual review.')
+                value.append(line[index:close])
+                index = close + 1
+            else:
+                value.append(character)
+                index += 1
+        words.append((''.join(value), line[start:index]))
+    return words, None
+
+
+def program_keyword(word):
+    return len(word) >= 3 and 'PROGRAM'.startswith(word.upper())
+
+
 def configure(text, action, managed_legacy=False):
-    """Transform only the PROGRAM directive, retaining all unrelated bytes."""
+    """Transform a simple PROGRAM directive; preserve unrelated logical lines."""
     lines = text.splitlines(keepends=True)
     programs = []
+    previous_program = False
     for index, line in enumerate(lines):
-        fields = line.split('#', 1)[0].split()
-        # mdadm accepts abbreviated keywords. Refuse ambiguous variants too.
-        if fields and len(fields[0]) >= 3 and 'PROGRAM'.startswith(fields[0].upper()):
-            programs.append((index, fields))
+        words, comment = line_words(line)
+        if not words:
+            continue
+        fields = [word[0] for word in words]
+        is_program = program_keyword(fields[0])
+        if line.startswith((' ', '\t')):
+            # Ordinary ARRAY, DEVICE, etc. continuations remain untouched.
+            # An indented PROGRAM is not a directive; do not silently enable
+            # around that likely configuration mistake or edit its parent.
+            if previous_program or is_program:
+                raise RuntimeError('Continued or indented PROGRAM syntax needs manual review.')
+            continue
+        previous_program = is_program
+        if is_program:
+            programs.append((index, fields, words, comment))
     if len(programs) > 1:
         raise RuntimeError('Multiple mdadm PROGRAM directives need manual review.')
     if programs:
-        index, fields = programs[0]
-        if fields == ['PROGRAM', TARGET]:
+        index, fields, words, comment = programs[0]
+        # Recognize quoted/abbreviated keywords as conflicts, while editing
+        # only the deliberately supported unquoted, full directive spelling.
+        simple = all(value == raw for value, raw in words)
+        if simple and fields == ['PROGRAM', TARGET]:
             if action == 'disable':
-                # Keep any comment attached by the administrator.
-                comment = lines[index].partition('#')[2]
-                lines[index] = '#' + comment if comment else ''
+                lines[index] = lines[index][comment:] if comment is not None else ''
                 return ''.join(lines)
             return text
-        if action == 'enable' and fields == ['PROGRAM', str(LEGACY)] and managed_legacy:
+        if simple and action == 'enable' and fields == ['PROGRAM', str(LEGACY)] and managed_legacy:
             lines[index] = lines[index].replace(str(LEGACY), TARGET, 1)
             return ''.join(lines)
         raise RuntimeError('An existing mdadm PROGRAM conflicts; refusing to replace or remove it.')

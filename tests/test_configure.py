@@ -40,6 +40,43 @@ class TransformTests(unittest.TestCase):
     def test_disable_retains_administrator_comment(self):
         self.assertEqual(configure.configure(f'PROGRAM {configure.TARGET} # note\n', 'disable'), '# note\n')
 
+    def test_quoted_keywords_and_literal_hash_are_conflicts(self):
+        for before in ('"PROGRAM" /other\n', "'pro' /other\n",
+                       'PRO"GRAM" /other\n',
+                       f'PROGRAM {configure.TARGET}#custom\n',
+                       f'PROGRAM "{configure.TARGET}"\n'):
+            for action in ('enable', 'disable'):
+                with self.subTest(before=before, action=action), self.assertRaises(RuntimeError):
+                    configure.configure(before, action)
+
+    def test_program_continuations_and_indentation_require_review(self):
+        for before in (f'MAILADDR root\n PROGRAM {configure.TARGET}\n',
+                       f' PROGRAM {configure.TARGET}\n',
+                       f'PROGRAM {configure.TARGET}\n /other\n',
+                       f'PROGRAM\n {configure.TARGET}\n',
+                       f'PROGRAM {configure.TARGET}\n# note\n /other\n'):
+            for action in ('enable', 'disable'):
+                with self.subTest(before=before, action=action), self.assertRaises(RuntimeError):
+                    configure.configure(before, action)
+
+    def test_normal_array_continuations_and_quotes_preserved(self):
+        before = ('MAILADDR root\nARRAY /dev/md0\n'
+                  ' UUID=abc name="host name"\n\n'
+                  ' # comment\n devices=/dev/sda1,/dev/sdb1\n'
+                  'ARRAY /dev/md1 UUID=def name=literal#hash\n')
+        after = configure.configure(before, 'enable')
+        self.assertEqual(after, before + f'PROGRAM {configure.TARGET}\n')
+        self.assertEqual(configure.configure(after, 'disable'), before)
+
+    def test_unterminated_quotes_fail_closed(self):
+        with self.assertRaises(RuntimeError):
+            configure.configure('MAILADDR "root\nPROGRAM /other\n', 'enable')
+
+    def test_comment_quotes_and_hash_do_not_change_parsing(self):
+        before = f'PROGRAM {configure.TARGET} # "unclosed quote and #\n'
+        self.assertEqual(configure.configure(before, 'enable'), before)
+        self.assertEqual(configure.configure(before, 'disable'), '# "unclosed quote and #\n')
+
 
 class FilesystemTests(unittest.TestCase):
     def setUp(self):
