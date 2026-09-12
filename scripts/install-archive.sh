@@ -1,7 +1,11 @@
 #!/bin/sh
 set -eu
 
-prefix=${PREFIX:-/usr}
+prefix=/usr
+if [ "${PREFIX:-/usr}" != /usr ]; then
+    echo 'PREFIX must be /usr to match the mdadm PROGRAM path' >&2
+    exit 1
+fi
 destination=${DESTDIR:-}
 here=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 install -d "$destination$prefix/sbin" "$destination$prefix/share/doc/smart-notifier-mdadm"

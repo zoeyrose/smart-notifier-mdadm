@@ -4,6 +4,7 @@ Section: admin
 Priority: optional
 Architecture: all
 Depends: python3 (>= 3.10), mdadm, smart-notifier
-Maintainer: smart-notifier-mdadm contributors
-Description: SMART disk warnings for Linux software RAID arrays
+Maintainer: Zoey Rose <zoeyrose@users.noreply.github.com>
+Homepage: https://github.com/zoeyrose/smart-notifier-mdadm
+Description: mdadm RAID alerts through smart-notifier
  Connects mdadm monitoring to smart-notifier without changing mdadm.conf.

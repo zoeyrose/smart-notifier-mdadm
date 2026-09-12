@@ -11,13 +11,13 @@ stable versions appear on GitHub Releases only after the release pipeline passes
 python3 -m unittest discover -s tests -v
 npm ci --ignore-scripts --no-audit --no-fund
 npm test
-./scripts/build-packages.sh
+make clean packages
 ```
 
 Package builds require Python 3, `dpkg-deb` (from `dpkg`), and standard Linux
 shell/archive tools. Node 22.14+ is for release planning and its tests; it is not
-a runtime dependency of the adapter. CI uses Node 24. A C compiler is not needed for this Python adapter. Packages are written under `dist/` and can be built without
-root. Neither builder installs the adapter on the build host.
+a runtime dependency of the adapter. CI uses Node 24. A C compiler is not needed for this Python adapter. Packages are written under `dist/`, which must be empty before a build, and
+can be built without root. Neither builder installs the adapter on the build host.
 
 Package versions come from Git tags or an explicit `PACKAGE_VERSION`; an
 untagged checkout produces a development version with its commit hash.

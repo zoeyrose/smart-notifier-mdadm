@@ -1,0 +1,13 @@
+import {appendFileSync, writeFileSync} from 'node:fs';
+import {execFileSync} from 'node:child_process';
+import {planRelease} from './plan.mjs';
+import {snapshotVersion} from './version.mjs';
+const cwd=process.cwd();
+const sha=execFileSync('git',['rev-parse','HEAD'],{encoding:'utf8'}).trim();
+if(sha!==process.env.RELEASE_SHA) throw new Error('Checkout does not match the triggering commit');
+const branch=process.env.RELEASE_BRANCH;
+const eligible=process.env.EVENT_KIND!=='pull_request' && (branch==='main'||/^\d+\.\d+\.x$/.test(branch));
+let plan=eligible ? await planRelease({cwd,branch,sha}) : {release:false,gitHead:sha,branch};
+if(!plan.version) plan.version=snapshotVersion(cwd,sha);
+writeFileSync('release-plan.json',JSON.stringify(plan,null,2)+'\n');
+appendFileSync(process.env.GITHUB_OUTPUT,`version=${plan.version}\nrelease=${Boolean(plan.release)}\ngit_head=${sha}\nbranch=${branch}\n`);
