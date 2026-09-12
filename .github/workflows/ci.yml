@@ -1,0 +1,145 @@
+name: Build and release
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      target_major:
+        description: 'Maintainers only: next major after merging chore(release): major N'
+        required: false
+        type: string
+
+concurrency:
+  group: smart-notifier-mdadm-${{ (github.ref == 'refs/heads/main' || endsWith(github.ref, '.x')) && 'stable-releases' || github.ref }}
+  cancel-in-progress: false
+  queue: max
+
+permissions:
+  contents: read
+
+jobs:
+  plan:
+    runs-on: ubuntu-24.04
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      release: ${{ steps.version.outputs.release }}
+      git_head: ${{ steps.version.outputs.git_head }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci --ignore-scripts --no-audit --no-fund
+      - name: Authorize an explicit major release
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: node release/major-gate.mjs
+      - name: Plan the version for this exact commit
+        id: version
+        env:
+          RELEASE_BRANCH: ${{ github.ref_name }}
+          RELEASE_SHA: ${{ github.sha }}
+          EVENT_KIND: ${{ github.event_name }}
+        run: node release/ci-plan.mjs
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-plan
+          path: release-plan.json
+          if-no-files-found: error
+
+  test:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci --ignore-scripts --no-audit --no-fund
+      - run: npm test
+      - name: Run Python and packaging tests
+        run: python3 -m unittest discover -s tests -p 'test_*.py' -v
+
+  packages:
+    needs: plan
+    runs-on: ubuntu-24.04
+    env:
+      PACKAGE_VERSION: ${{ needs.plan.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Build Debian and portable packages
+        run: ./scripts/build-packages.sh
+      - name: Smoke-test package contents without running notification code
+        run: |
+          mkdir -p package-smoke/deb package-smoke/archive
+          dpkg-deb --extract dist/*.deb package-smoke/deb
+          tar -xzf dist/*.tar.gz -C package-smoke/archive
+          test -x package-smoke/deb/usr/sbin/smart-notifier-mdadm
+          test -x package-smoke/deb/usr/sbin/smart-notifier-mdadm-configure
+          python3 -m py_compile package-smoke/deb/usr/sbin/smart-notifier-mdadm
+          python3 -m py_compile package-smoke/deb/usr/sbin/smart-notifier-mdadm-configure
+      - name: Record exact artifact source
+        env:
+          SOURCE_SHA: ${{ needs.plan.outputs.git_head }}
+        run: node release/manifest.mjs
+      - uses: actions/upload-artifact@v4
+        with:
+          name: packages-all
+          path: |
+            dist/*.deb
+            dist/*.tar.gz
+            dist/manifest-all.json
+          if-no-files-found: error
+          retention-days: 30
+
+  validation:
+    name: Smart Notifier mdadm validation
+    if: always()
+    needs: [plan, test, packages]
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Require all plans, tests, and package builds
+        env:
+          RESULTS: ${{ join(needs.*.result, ',') }}
+        run: test "$RESULTS" = 'success,success,success'
+
+  publish:
+    needs: [plan, packages, validation]
+    if: needs.plan.outputs.release == 'true' && needs.validation.result == 'success' && github.event_name != 'pull_request'
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - uses: actions/download-artifact@v4
+        with:
+          name: release-plan
+          path: release-input
+      - uses: actions/download-artifact@v4
+        with:
+          name: packages-all
+          path: release-assets
+      - name: Verify and publish the immutable release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EXPECTED_SHA: ${{ needs.plan.outputs.git_head }}
+        run: node release/publish.mjs
