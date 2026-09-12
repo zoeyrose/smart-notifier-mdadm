@@ -2,7 +2,7 @@
 set -eu
 
 root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
-version=${PACKAGE_VERSION:-$($root/scripts/version.sh)}
+if [ "${PACKAGE_VERSION:-}" ]; then version=$PACKAGE_VERSION; else version=$("$root/scripts/version.sh"); fi
 PACKAGE_VERSION=$version "$root/scripts/version.sh" >/dev/null
 debian_version=$(printf '%s\n' "$version" | sed 's/-dev\./~dev./')
 output=${OUTPUT_DIR:-$root/dist}

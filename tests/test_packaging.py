@@ -16,7 +16,7 @@ class PackagingTests(unittest.TestCase):
     def setUp(self):
         self.temporary = tempfile.TemporaryDirectory()
         self.addCleanup(self.temporary.cleanup)
-        self.root = Path(self.temporary.name) / "project"
+        self.root = Path(self.temporary.name) / "project with spaces"
         (self.root / "scripts").mkdir(parents=True)
         (self.root / "packaging" / "debian").mkdir(parents=True)
         (self.root / "src").mkdir()
