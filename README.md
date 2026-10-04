@@ -57,7 +57,8 @@ not queued for your next login and this adapter does not configure email.
 | Events | Behavior |
 | --- | --- |
 | Failed member or spare, degraded array, missing array or spares | Show a warning |
-| Rebuild finished or spare activated | Show a status message; check the array to confirm recovery |
+| RebuildFinished | Show the operation that ended when Linux exposes it: consistency check, recovery, synchronization, repair, or reshape; otherwise show a generic maintenance message |
+| SpareActive | Show a status message; check the array to confirm recovery |
 | TestMessage | Show an explicitly labeled test |
 | NewArray, RebuildStarted, RebuildNN | Suppress routine discovery and progress |
 | Unrecognized events | Show a generic warning with the event details |
@@ -66,6 +67,17 @@ Messages include the array, related device when provided, and commands to inspec
 status. Submission failures go to stderr and syslog. This supplements smartd's
 hardware-health warnings with mdadm's array-state warnings; neither guarantees
 advance notice of every hardware failure.
+
+mdadm also calls routine consistency-check completion `RebuildFinished`. The
+adapter reads Linux sysfs through the array's block-device identity, including
+named `/dev/md/` aliases, to distinguish these operations. For a check,
+it includes the reported mismatch count and current member synchronization state
+when available. These are best-effort snapshots, not a guarantee of drive health
+or proof that the check was scheduled. Missing or unreadable status never prevents
+the notification; an ongoing operation uses the generic maintenance wording.
+`RebuildFinished` can also follow an aborted operation, so messages say "ended"
+and advise confirming completion in the logs. Zero reported mismatches alone
+does not prove that a full check completed.
 
 ## Development
 
