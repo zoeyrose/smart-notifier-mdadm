@@ -32,8 +32,12 @@ class MaintenanceTests(unittest.TestCase):
             (self.md / f'dev-{member}' / 'state').write_text('in_sync')
 
     def description(self):
-        with patch.object(adapter.os, 'stat', return_value=SimpleNamespace(
-                st_mode=stat.S_IFBLK, st_rdev=os.makedev(9, 127))):
+        original_stat = os.stat
+        def array_stat(path, *args, **kwargs):
+            if os.fspath(path) == '/dev/md/ubuntu-root':
+                return SimpleNamespace(st_mode=stat.S_IFBLK, st_rdev=os.makedev(9, 127))
+            return original_stat(path, *args, **kwargs)
+        with patch.object(adapter.os, 'stat', side_effect=array_stat):
             return adapter.maintenance_description('/dev/md/ubuntu-root', self.root)
 
     def test_named_array_uses_block_identity_and_reports_check_result(self):
