@@ -9,7 +9,7 @@
     "test": "node --test release/*.test.mjs"
   },
   "devDependencies": {
-    "semantic-release": "25.0.9"
+    "semantic-release": "26.0.1"
   }
 }
 
